@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>奶蛙 3D 预览</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐸</text></svg>">
+<style>
+:root{--bg:#fff3c4;--ink:#2b2414;--yellow:#f6c945}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1a12;--ink:#fff4c2}}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:system-ui,"Noto Sans SC",sans-serif;overflow:hidden}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.bar{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:calc(100% - 32px)}
+.bar button{font:inherit;font-size:15px;font-weight:700;padding:8px 14px;border:2px solid #2b2414;border-radius:999px;background:var(--yellow);color:#2b2414;box-shadow:3px 3px 0 #2b2414;cursor:pointer}
+.bar button.on{background:#2b2414;color:var(--yellow)}
+.tip{position:fixed;top:14px;left:16px;font-size:14px;opacity:.75}
+#fps{position:fixed;top:14px;right:16px;font:12px ui-monospace,monospace;opacity:.6}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="tip">🐸 奶蛙 3D 预览 · 拖动旋转，滚轮缩放</div>
+<div id="fps"></div>
+<div class="bar" id="bar"></div>
+<script type="importmap">{"imports":{"three":"./lib/three/three.module.js","three/addons/":"./lib/three/addons/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+const canvas=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.15; renderer.shadowMap.enabled=true;
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(30,1,0.05,50); cam.position.set(1.2,0.75,2.6);
+const ctl=new OrbitControls(cam,canvas); ctl.target.set(0,0.5,0); ctl.enableDamping=true; ctl.minDistance=1.2; ctl.maxDistance=6;
+scene.add(new THREE.HemisphereLight(0xfff6e0,0x8a7a50,1.6));
+const sun=new THREE.DirectionalLight(0xffffff,2.2); sun.position.set(1.5,3,2); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024);
+Object.assign(sun.shadow.camera,{left:-1,right:1,top:1.5,bottom:-0.2}); scene.add(sun);
+const fill=new THREE.DirectionalLight(0xffe7b0,0.8); fill.position.set(-2,1,-1); scene.add(fill);
+const ground=new THREE.Mesh(new THREE.CircleGeometry(1.2,48),new THREE.ShadowMaterial({opacity:0.18})); ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+
+const NAMES={idle:'🧍 待机',walk:'🚶 走路',laugh:'🤣 捧腹大笑',battle:'⚔️ 战斗模式'};
+const SND={laugh:new Audio('assets/laugh.mp3'),battle:new Audio('assets/battle.mp3')};
+let mixer, actions={}, current;
+new GLTFLoader().load('assets/naiwa.glb',g=>{
+  const m=g.scene; m.traverse(o=>{ if(o.isMesh){ o.castShadow=true; if(o.material){ o.material.roughness=0.75; o.material.metalness=0; } } });
+  scene.add(m); mixer=new THREE.AnimationMixer(m);
+  for(const clip of g.animations){ const a=mixer.clipAction(clip); actions[clip.name]=a;
+    if(clip.name==='laugh'||clip.name==='battle'){ a.setLoop(THREE.LoopOnce); a.clampWhenFinished=true; } }
+  const bar=document.getElementById('bar');
+  for(const k of ['idle','walk','laugh','battle']) if(actions[k]){ const b=document.createElement('button'); b.textContent=NAMES[k]; b.dataset.k=k; b.onclick=()=>play(k); bar.appendChild(b); }
+  mixer.addEventListener('finished',()=>play('idle'));
+  const q=new URLSearchParams(location.search).get('a'); play(q&&actions[q]?q:'idle');
+});
+function play(k){
+  const next=actions[k]; if(!next) return;
+  for(const s of Object.values(SND)){ s.pause(); }
+  if(SND[k]){ try{ SND[k].currentTime=0; SND[k].play().catch(()=>{}); }catch(e){} }
+  next.reset().setEffectiveWeight(1).play();
+  if(current&&current!==next) current.crossFadeTo(next,0.25,false);
+  current=next;
+  document.querySelectorAll('.bar button').forEach(b=>b.classList.toggle('on',b.dataset.k===k));
+}
+function resize(){ const w=innerWidth,h=innerHeight; renderer.setSize(w,h,false); cam.aspect=w/h; cam.updateProjectionMatrix(); }
+addEventListener('resize',resize); resize();
+const clock=new THREE.Clock(); let fc=0, ft=0; const fpsEl=document.getElementById('fps');
+renderer.setAnimationLoop(()=>{ const dt=clock.getDelta(); if(mixer) mixer.update(dt); ctl.update(); renderer.render(scene,cam);
+  fc++; ft+=dt; if(ft>=1){ fpsEl.textContent=fc+' fps'; fc=0; ft=0; } });
+</script>
+</body>
+</html>
