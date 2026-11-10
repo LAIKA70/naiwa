@@ -99,6 +99,20 @@ section .lead{color:var(--muted);margin:0 0 32px;font-size:17px}
 
 footer{padding:40px 0 60px;text-align:center;color:var(--muted);font-size:14px;border-top:3px dashed var(--olive)}
 footer p{margin:4px 0}
+
+/* ---------- desktop pet ---------- */
+#pet{position:fixed;left:0;top:0;width:var(--pw);height:var(--ph);z-index:40;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+#pet.held{cursor:grabbing}
+#pet .body{position:absolute;inset:0;transform-origin:50% 100%;will-change:transform}
+#pet img{position:absolute;left:50%;bottom:0;height:100%;transform:translateX(-50%);pointer-events:none;-webkit-user-drag:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.08))}
+#pet .shadow{position:absolute;left:50%;bottom:-6px;width:70%;height:12px;transform:translateX(-50%);border-radius:50%;background:rgba(0,0,0,.18);filter:blur(2px)}
+#pet .bubble{position:absolute;left:50%;bottom:100%;transform:translate(-50%,-6px);background:#fff;color:#2b2414;border:2px solid #2b2414;border-radius:12px;padding:2px 10px;font-family:"ZCOOL KuaiLe";font-size:16px;white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none}
+#pet .bubble.show{opacity:1}
+.zzz{position:fixed;z-index:41;pointer-events:none;font-family:"ZCOOL KuaiLe";color:#2b2414;font-size:20px;animation:zz 2.2s ease-out forwards}
+@keyframes zz{0%{opacity:0;transform:translate(0,0) scale(.6)}20%{opacity:1}100%{opacity:0;transform:translate(30px,-70px) scale(1.3)}}
+#petToggle{position:fixed;right:14px;bottom:14px;z-index:45;font-family:"ZCOOL KuaiLe";font-size:15px;background:var(--yellow);color:#2b2414;border:2px solid #2b2414;border-radius:999px;padding:4px 12px;box-shadow:3px 3px 0 #2b2414;cursor:pointer}
+:root{--pw:110px;--ph:180px}
+@media (max-width:600px){:root{--pw:80px;--ph:132px}}
 @media (prefers-reduced-motion:reduce){.marquee div{animation:none}.burst{display:none}}
 </style>
 </head>
@@ -115,10 +129,11 @@ footer p{margin:4px 0}
 
 <header class="hero wrap" id="top">
   <span class="tag">非官方 · 纯属整活</span>
-  <img id="hero-img" src="assets/naiwa.png" alt="奶蛙" onerror="this.remove()" style="max-width:220px;width:50vw;display:block;margin:16px auto 0">
+  <img id="hero-img" src="assets/front.png" alt="奶蛙" onerror="this.remove()" style="height:170px;display:block;margin:16px auto 0">
   <h1>奶 蛙</h1>
   <p class="sub">一只黄色梨形生物。核心技能只有一个：<b>点一下，就狂笑</b>。笑到发抖，笑到脱力，笑到你也开始笑。</p>
   <button class="laugh-btn" id="laugh">👉 点我狂笑</button>
+  <div class="counter" style="margin-bottom:4px">🐸 屏幕底下那只会自己溜达：点它会狂笑，还能拎起来甩</div>
   <div class="counter">全站已狂笑 <b id="count">0</b> 次（仅限你这台设备）</div>
 </header>
 
@@ -178,6 +193,10 @@ footer p{margin:4px 0}
   <p class="lead">三道题，测测你的抽象浓度。</p>
   <div class="quiz" id="quizBox"></div>
 </div></section>
+
+
+<div id="pet" aria-label="奶蛙桌宠，点击它会狂笑"><div class="shadow"></div><div class="body"><img id="petImg" src="assets/front.png" alt=""></div><div class="bubble" id="petBubble"></div></div>
+<button id="petToggle">🐸 收起奶蛙</button>
 
 <footer><div class="wrap">
   <p>🐸 奶蛙研究所 · 非官方粉丝整活站，与奶龙版权方无关</p>
@@ -279,6 +298,112 @@ function renderQ(){
   });
 }
 renderQ();
+
+// ---------- desktop pet ----------
+(function(){
+  const pet=document.getElementById('pet'), body=pet.querySelector('.body'), img=document.getElementById('petImg'), bub=document.getElementById('petBubble');
+  const VIEWS={front:'assets/front.png',side:'assets/side.png',back:'assets/back.png'};
+  Object.values(VIEWS).forEach(u=>{const i=new Image();i.src=u});
+  const W=()=>pet.offsetWidth, H=()=>pet.offsetHeight;
+  const ground=()=>window.innerHeight-H()-14;
+  let x=Math.random()*(innerWidth-W()), y=ground(), vx=0, vy=0;
+  let dir=1, view='front', state='idle', until=0, t0=performance.now(), targetX=0, hidden=false;
+  const now=()=>performance.now(), rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)];
+  function setView(v){ if(view!==v){view=v; img.src=VIEWS[v];} }
+  function say(txt,ms=1400){ bub.textContent=txt; bub.classList.add('show'); clearTimeout(say.t); say.t=setTimeout(()=>bub.classList.remove('show'),ms); }
+  function go(s,dur){ state=s; t0=now(); until=t0+dur; }
+  function next(){
+    const r=Math.random();
+    if(r<0.42){ targetX=rand(0,innerWidth-W()); dir=targetX>x?1:-1;
+      if(Math.random()<0.3){ setView('back'); go('turn',500); } else { go('walk',99999); } }
+    else if(r<0.58) go('idle',rand(1800,3500));
+    else if(r<0.70) go('look',rand(1800,2800));
+    else if(r<0.80) go('sit',rand(2500,4000));
+    else if(r<0.90) go('sleep',rand(4500,7000));
+    else if(r<0.96) go('hop',700);
+    else { go('laugh',1800); laugh(false); }
+    if(state==='idle' && Math.random()<0.3) say(pick(['呱','……','嗯？','今天也很黄','有人吗']));
+  }
+  function burst(n){
+    const r=pet.getBoundingClientRect();
+    for(let i=0;i<n;i++){
+      const s=document.createElement('span'); s.className='burst';
+      s.textContent=pick(['哈哈哈','呱！','嘎嘎嘎','哈哈哈哈哈','绷不住了','笑死','🤣']);
+      s.style.left=(r.left+r.width/2)+'px'; s.style.top=(r.top+r.height*0.3)+'px';
+      s.style.fontSize=(14+Math.random()*18)+'px';
+      const a=-Math.PI*Math.random(), d=60+Math.random()*120;
+      s.style.setProperty('--dx',Math.cos(a)*d+'px'); s.style.setProperty('--dy',Math.sin(a)*d+'px');
+      s.style.setProperty('--r',(Math.random()*60-30)+'deg');
+      document.body.appendChild(s); setTimeout(()=>s.remove(),1400);
+    }
+  }
+  function laugh(user){
+    setView('front'); go('laugh', user?2200:1800); burst(user?8:4);
+    if(user){ try{ laughSound(); }catch(e){} count++; cEl.textContent=count; try{localStorage.setItem('naiwa-count',count)}catch(e){} }
+  }
+  // ----- pointer: click = interrupt & laugh, drag = pick up -----
+  let down=null, held=false, last=null;
+  pet.addEventListener('pointerdown',e=>{ down={x:e.clientX,y:e.clientY,ox:e.clientX-x,oy:e.clientY-y}; last={x:e.clientX,y:e.clientY,t:now()}; pet.setPointerCapture(e.pointerId); e.preventDefault(); });
+  pet.addEventListener('pointermove',e=>{
+    if(!down) return;
+    if(!held && Math.hypot(e.clientX-down.x,e.clientY-down.y)>6){ held=true; pet.classList.add('held'); setView('front'); state='held'; say(pick(['放我下来！','呱！？','啊啊啊']),99999); }
+    if(held){ const t=now(), dt=Math.max(1,t-last.t);
+      vx=(e.clientX-last.x)/dt*16; vy=(e.clientY-last.y)/dt*16; last={x:e.clientX,y:e.clientY,t};
+      x=e.clientX-down.ox; y=e.clientY-down.oy; }
+  });
+  function release(){
+    if(!down) return;
+    if(held){ held=false; pet.classList.remove('held'); bub.classList.remove('show'); state='fall'; }
+    else { laugh(true); }
+    down=null;
+  }
+  pet.addEventListener('pointerup',release); pet.addEventListener('pointercancel',release);
+
+  // ----- main loop -----
+  let prev=now();
+  function frame(t){
+    const dt=Math.min(50,t-prev)/1000; prev=t; const e=(t-t0)/1000;
+    let sx=1, sy=1, rot=0, ty=0, flip=1;
+    const g=ground();
+    switch(state){
+      case 'idle': setView('front'); sy=1+Math.sin(e*3)*0.02; sx=1-Math.sin(e*3)*0.015; break;
+      case 'look': setView('front'); flip=(Math.floor(e/0.7)%2)?-1:1; rot=Math.sin(e*2)*3; break;
+      case 'turn': setView('back'); sy=1+Math.sin(e*12)*0.02; if(t>until){ go('walk',99999);} break;
+      case 'walk': {
+        setView('side'); const sp=70*dt; x+= dir*sp; flip = dir>0?-1:1;   // side view faces left
+        ty=-Math.abs(Math.sin(e*8))*7; rot=Math.sin(e*8)*5; sy=1-Math.abs(Math.cos(e*8))*0.04;
+        if((dir>0&&x>=targetX)||(dir<0&&x<=targetX)){ x=targetX; next(); }
+        break; }
+      case 'sit': setView('front'); { const k=Math.min(1,e*4); sy=1-0.14*k; sx=1+0.1*k; } break;
+      case 'sleep': setView('front'); sy=0.9+Math.sin(e*1.6)*0.025; sx=1.06; rot=6;
+        if(Math.random()<dt*0.9){ const r=pet.getBoundingClientRect(); const z=document.createElement('span'); z.className='zzz'; z.textContent=pick(['Z','z','Zz']); z.style.left=(r.right-20)+'px'; z.style.top=(r.top+10)+'px'; document.body.appendChild(z); setTimeout(()=>z.remove(),2300); }
+        break;
+      case 'hop': setView('front'); { const p=e/0.7; ty=-Math.sin(Math.min(1,p)*Math.PI)*45; sy= p<0.15?0.85:(p>0.9?0.88:1.06); sx=2-sy; } break;
+      case 'laugh': setView('front'); rot=Math.sin(e*40)*7; sy=1+Math.sin(e*25)*0.06; sx=1-Math.sin(e*25)*0.04; ty=-Math.abs(Math.sin(e*12))*6;
+        if(Math.random()<dt*3) burst(1); break;
+      case 'held': rot=Math.max(-30,Math.min(30,vx*2)); sy=1.08; sx=0.94; ty=Math.sin(t/60)*1.5; break;
+      case 'fall':
+        vy+=1800*dt; x+=vx*60*dt; y+=vy*dt; vx*=0.98; rot=vx*1.5;
+        if(x<0){x=0;vx=-vx*0.5} if(x>innerWidth-W()){x=innerWidth-W();vx=-vx*0.5}
+        if(y>=g){ y=g; if(vy>500){ vy=-vy*0.35; say(pick(['哎哟','呱！','好疼'])); } else { vy=0; vx=0; go('land',350); } }
+        break;
+      case 'land': setView('front'); { const p=e/0.35; sy=0.75+0.25*p; sx=1.25-0.25*p; } break;
+    }
+    if(state!=='held' && state!=='fall'){ y+= (g-y)*0.3; }
+    if((state==='land'||state==='laugh'||state==='idle'||state==='look'||state==='sit'||state==='sleep'||state==='hop') && t>until) next();
+    x=Math.max(0,Math.min(innerWidth-W(),x));
+    pet.style.transform=`translate(${x}px,${y}px)`;
+    body.style.transform=`translateY(${ty}px) rotate(${rot}deg) scale(${sx*flip},${sy})`;
+    if(!hidden) requestAnimationFrame(frame);
+  }
+  go('idle',1500); requestAnimationFrame(frame);
+  addEventListener('resize',()=>{ if(state!=='held') y=ground(); });
+
+  // ----- show / hide -----
+  const tg=document.getElementById('petToggle');
+  tg.onclick=()=>{ hidden=!hidden; pet.style.display=hidden?'none':''; tg.textContent=hidden?'🐸 召唤奶蛙':'🐸 收起奶蛙';
+    if(!hidden){ prev=now(); y=-H(); vx=0; vy=0; x=rand(0,innerWidth-W()); state='fall'; requestAnimationFrame(frame); } };
+})();
 </script>
 </body>
 </html>
