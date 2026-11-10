@@ -104,7 +104,17 @@ footer p{margin:4px 0}
 #pet{position:fixed;left:0;top:0;width:var(--pw);height:var(--ph);z-index:40;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
 #pet.held{cursor:grabbing}
 #pet .body{position:absolute;inset:0;transform-origin:50% 100%;will-change:transform}
-#pet img{position:absolute;left:50%;bottom:0;height:100%;transform:translateX(-50%);pointer-events:none;-webkit-user-drag:none;filter:drop-shadow(0 2px 0 rgba(0,0,0,.08))}
+#pet .view{position:absolute;left:50%;bottom:0;height:100%;transform:translateX(-50%);display:none}
+#pet .view img{position:absolute;left:0;width:100%;pointer-events:none;-webkit-user-drag:none}
+#pet .v-front{aspect-ratio:266/440}#pet .v-front img{top:0;height:100%}
+#pet .pupil{position:absolute;top:8.3%;width:4.6%;aspect-ratio:1;margin:-2.3% 0 0 -2.3%;border-radius:50%;background:#111;transition:transform .08s linear}
+#pet .v-side{aspect-ratio:199/446}
+#pet .v-side .torso,#pet .v-side .arm{top:0;height:100%}
+#pet .v-side .leg{top:71.3%;height:28.7%;transform-origin:49.2% 3.1%}
+#pet .v-side .leg.far{filter:brightness(.78)}
+#pet .v-side .arm{transform-origin:56.3% 35.9%}
+#pet .v-back{aspect-ratio:275/443}#pet .v-back img{top:0;height:100%}
+#pet .v-laugh{aspect-ratio:215/300;height:108%;background:url(assets/laugh-sprite.webp) 0 0/1200% 600% no-repeat}
 #pet .shadow{position:absolute;left:50%;bottom:-6px;width:70%;height:12px;transform:translateX(-50%);border-radius:50%;background:rgba(0,0,0,.18);filter:blur(2px)}
 #pet .bubble{position:absolute;left:50%;bottom:100%;transform:translate(-50%,-6px);background:#fff;color:#2b2414;border:2px solid #2b2414;border-radius:12px;padding:2px 10px;font-family:"ZCOOL KuaiLe";font-size:16px;white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none}
 #pet .bubble.show{opacity:1}
@@ -195,7 +205,12 @@ footer p{margin:4px 0}
 </div></section>
 
 
-<div id="pet" aria-label="奶蛙桌宠，点击它会狂笑"><div class="shadow"></div><div class="body"><img id="petImg" src="assets/front.png" alt=""></div><div class="bubble" id="petBubble"></div></div>
+<div id="pet" aria-label="奶蛙桌宠，点击它会狂笑"><div class="shadow"></div><div class="body">
+  <div class="view v-front"><img src="assets/front-noeyes.png" alt=""><i class="pupil" style="left:40.1%"></i><i class="pupil" style="left:60.6%"></i></div>
+  <div class="view v-side"><img class="leg far" src="assets/rig-leg.png" alt=""><img class="leg near" src="assets/rig-leg.png" alt=""><img class="torso" src="assets/rig-body.png" alt=""><img class="arm" src="assets/rig-arm.png" alt=""></div>
+  <div class="view v-back"><img src="assets/back.png" alt=""></div>
+  <div class="view v-laugh"></div>
+</div><div class="bubble" id="petBubble"></div></div>
 <button id="petToggle">🐸 收起奶蛙</button>
 
 <footer><div class="wrap">
@@ -259,7 +274,7 @@ function synth(){
 document.getElementById('laugh').addEventListener('click', e=>{
   count++; cEl.textContent = count;
   try{ localStorage.setItem('naiwa-count', count) }catch(err){}
-  laughSound();
+  if(window.petLaugh) window.petLaugh(); else laughSound();
   document.body.classList.remove('shake'); void document.body.offsetWidth; document.body.classList.add('shake');
   const r = e.currentTarget.getBoundingClientRect();
   for(let i=0;i<10;i++){
@@ -301,108 +316,121 @@ renderQ();
 
 // ---------- desktop pet ----------
 (function(){
-  const pet=document.getElementById('pet'), body=pet.querySelector('.body'), img=document.getElementById('petImg'), bub=document.getElementById('petBubble');
-  const VIEWS={front:'assets/front.png',side:'assets/side.png',back:'assets/back.png'};
-  Object.values(VIEWS).forEach(u=>{const i=new Image();i.src=u});
-  const W=()=>pet.offsetWidth, H=()=>pet.offsetHeight;
-  const ground=()=>window.innerHeight-H()-14;
-  let x=Math.random()*(innerWidth-W()), y=ground(), vx=0, vy=0;
-  let dir=1, view='front', state='idle', until=0, t0=performance.now(), targetX=0, hidden=false;
+  const pet=document.getElementById('pet'), body=pet.querySelector('.body'), bub=document.getElementById('petBubble');
+  const V={front:pet.querySelector('.v-front'),side:pet.querySelector('.v-side'),back:pet.querySelector('.v-back'),laugh:pet.querySelector('.v-laugh')};
+  const legN=pet.querySelector('.leg.near'), legF=pet.querySelector('.leg.far'), arm=pet.querySelector('.arm'), pupils=pet.querySelectorAll('.pupil');
+  const audio=new Audio('assets/laugh.mp3'); audio.preload='auto';
+  let interacted=false; addEventListener('pointerdown',()=>interacted=true,{once:true});
+  const W=()=>pet.offsetWidth, H=()=>pet.offsetHeight, ground=()=>innerHeight-H()-14;
   const now=()=>performance.now(), rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)];
-  function setView(v){ if(view!==v){view=v; img.src=VIEWS[v];} }
+  let x=rand(0,innerWidth-W()), y=ground(), vx=0, vy=0, dir=-1, view='', state='idle', t0=now(), until=0, targetX=null, hidden=false, phase=0;
+  let mx=innerWidth/2, my=innerHeight/2;
+  addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});
+  addEventListener('touchstart',e=>{const t=e.touches[0]; if(t){mx=t.clientX;my=t.clientY}},{passive:true});
+  function setView(v){ if(view===v) return; view=v; for(const k in V) V[k].style.display=k===v?'block':'none'; }
   function say(txt,ms=1400){ bub.textContent=txt; bub.classList.add('show'); clearTimeout(say.t); say.t=setTimeout(()=>bub.classList.remove('show'),ms); }
-  function go(s,dur){ state=s; t0=now(); until=t0+dur; }
-  function next(){
-    const r=Math.random();
-    if(r<0.42){ targetX=rand(0,innerWidth-W()); dir=targetX>x?1:-1;
-      if(Math.random()<0.3){ setView('back'); go('turn',500); } else { go('walk',99999); } }
-    else if(r<0.58) go('idle',rand(1800,3500));
-    else if(r<0.70) go('look',rand(1800,2800));
-    else if(r<0.80) go('sit',rand(2500,4000));
-    else if(r<0.90) go('sleep',rand(4500,7000));
-    else if(r<0.96) go('hop',700);
-    else { go('laugh',1800); laugh(false); }
-    if(state==='idle' && Math.random()<0.3) say(pick(['呱','……','嗯？','今天也很黄','有人吗']));
-  }
+  function go(st,dur){ state=st; t0=now(); until=t0+dur; }
+  function stopAudio(){ try{audio.pause()}catch(e){} }
   function burst(n){
     const r=pet.getBoundingClientRect();
-    for(let i=0;i<n;i++){
-      const s=document.createElement('span'); s.className='burst';
+    for(let i=0;i<n;i++){ const s=document.createElement('span'); s.className='burst';
       s.textContent=pick(['哈哈哈','呱！','嘎嘎嘎','哈哈哈哈哈','绷不住了','笑死','🤣']);
-      s.style.left=(r.left+r.width/2)+'px'; s.style.top=(r.top+r.height*0.3)+'px';
-      s.style.fontSize=(14+Math.random()*18)+'px';
+      s.style.left=(r.left+r.width/2)+'px'; s.style.top=(r.top+r.height*0.25)+'px'; s.style.fontSize=(14+Math.random()*18)+'px';
       const a=-Math.PI*Math.random(), d=60+Math.random()*120;
-      s.style.setProperty('--dx',Math.cos(a)*d+'px'); s.style.setProperty('--dy',Math.sin(a)*d+'px');
-      s.style.setProperty('--r',(Math.random()*60-30)+'deg');
-      document.body.appendChild(s); setTimeout(()=>s.remove(),1400);
-    }
+      s.style.setProperty('--dx',Math.cos(a)*d+'px'); s.style.setProperty('--dy',Math.sin(a)*d+'px'); s.style.setProperty('--r',(Math.random()*60-30)+'deg');
+      document.body.appendChild(s); setTimeout(()=>s.remove(),1400); }
   }
-  function laugh(user){
-    setView('front'); go('laugh', user?2200:1800); burst(user?8:4);
-    if(user){ try{ laughSound(); }catch(e){} count++; cEl.textContent=count; try{localStorage.setItem('naiwa-count',count)}catch(e){} }
+  // laugh: 72-frame sprite @12fps synced to laugh.mp3
+  function laugh(byUser){
+    go('laugh',6000); setView('laugh'); bub.classList.remove('show');
+    if(byUser||interacted){ try{ audio.currentTime=0; audio.volume=byUser?1:0.55; audio.play().catch(()=>{}); }catch(e){} }
+    burst(byUser?6:3);
   }
-  // ----- pointer: click = interrupt & laugh, drag = pick up -----
+  window.petLaugh=()=>{ if(hidden) return; laugh(true); };
+  function startWalk(){ if(targetX===null){ targetX=rand(0,innerWidth-W()); } dir=targetX>x?1:-1; go('walk',99999); }
+  function next(){
+    const r=Math.random();
+    if(r<0.5){ targetX=rand(0,innerWidth-W()); dir=targetX>x?1:-1; if(Math.random()<0.25) go('turn',600); else startWalk(); }
+    else if(r<0.64){ go('idle',rand(1800,3200)); if(Math.random()<0.35) say(pick(['呱','……','嗯？','今天也很黄','有人吗'])); }
+    else if(r<0.76) go('gaze',rand(1600,2600));
+    else if(r<0.85) go('sit',rand(2500,4000));
+    else if(r<0.93) go('sleep',rand(4500,7000));
+    else go('hop',700);
+  }
+  function eyes(track){
+    const fr=V.front.getBoundingClientRect(), w=fr.width, mxp=w*0.016;
+    pupils.forEach((p,i)=>{
+      if(!track){ p.style.transform='none'; return; }
+      const ex=fr.left+w*(i?0.606:0.401), ey=fr.top+fr.height*0.083;
+      const dx=mx-ex, dy=my-ey, d=Math.hypot(dx,dy)||1, k=Math.min(1,d/120);
+      p.style.transform=`translate(${dx/d*mxp*k}px,${dy/d*mxp*k}px)`;
+    });
+  }
+  // pointer: click = laugh (interrupts anything), drag = pick up
   let down=null, held=false, last=null;
   pet.addEventListener('pointerdown',e=>{ down={x:e.clientX,y:e.clientY,ox:e.clientX-x,oy:e.clientY-y}; last={x:e.clientX,y:e.clientY,t:now()}; pet.setPointerCapture(e.pointerId); e.preventDefault(); });
   pet.addEventListener('pointermove',e=>{
     if(!down) return;
-    if(!held && Math.hypot(e.clientX-down.x,e.clientY-down.y)>6){ held=true; pet.classList.add('held'); setView('front'); state='held'; say(pick(['放我下来！','呱！？','啊啊啊']),99999); }
-    if(held){ const t=now(), dt=Math.max(1,t-last.t);
-      vx=(e.clientX-last.x)/dt*16; vy=(e.clientY-last.y)/dt*16; last={x:e.clientX,y:e.clientY,t};
-      x=e.clientX-down.ox; y=e.clientY-down.oy; }
+    if(!held && Math.hypot(e.clientX-down.x,e.clientY-down.y)>6){ held=true; stopAudio(); pet.classList.add('held'); setView('front'); state='held'; say(pick(['放我下来！','呱！？','啊啊啊']),99999); }
+    if(held){ const t=now(), dt=Math.max(1,t-last.t); vx=(e.clientX-last.x)/dt*16; vy=(e.clientY-last.y)/dt*16; last={x:e.clientX,y:e.clientY,t}; x=e.clientX-down.ox; y=e.clientY-down.oy; }
   });
-  function release(){
-    if(!down) return;
+  function release(){ if(!down) return;
     if(held){ held=false; pet.classList.remove('held'); bub.classList.remove('show'); state='fall'; }
-    else { laugh(true); }
-    down=null;
-  }
+    else { laugh(true); count++; cEl.textContent=count; try{localStorage.setItem('naiwa-count',count)}catch(e){} }
+    down=null; }
   pet.addEventListener('pointerup',release); pet.addEventListener('pointercancel',release);
 
-  // ----- main loop -----
   let prev=now();
   function frame(t){
-    const dt=Math.min(50,t-prev)/1000; prev=t; const e=(t-t0)/1000;
-    let sx=1, sy=1, rot=0, ty=0, flip=1;
-    const g=ground();
+    const dt=Math.min(50,t-prev)/1000; prev=t; const e=(t-t0)/1000, g=ground();
+    let sx=1, sy=1, rot=0, ty=0, flip=1, track=false;
+    legN.style.transform=legF.style.transform=arm.style.transform='';
     switch(state){
-      case 'idle': setView('front'); sy=1+Math.sin(e*3)*0.02; sx=1-Math.sin(e*3)*0.015; break;
-      case 'look': setView('front'); flip=(Math.floor(e/0.7)%2)?-1:1; rot=Math.sin(e*2)*3; break;
-      case 'turn': setView('back'); sy=1+Math.sin(e*12)*0.02; if(t>until){ go('walk',99999);} break;
+      case 'idle': setView('front'); track=true; sy=1+Math.sin(e*3)*0.015; sx=1-Math.sin(e*3)*0.01; break;
+      case 'gaze': setView('front'); track=true; rot=Math.sin(e*1.5)*2; if(e<0.15) sy=0.96; if(e>0.3&&e<0.5&&!bub.classList.contains('show')) say(pick(['👀','？','看我干嘛','呱？']),1200);
+        if(t>until){ if(targetX!==null && Math.abs(targetX-x)>4) startWalk(); else next(); } break;
+      case 'turn': setView('back'); sy=1+Math.sin(e*12)*0.02; if(t>until) startWalk(); break;
       case 'walk': {
-        setView('side'); const sp=70*dt; x+= dir*sp; flip = dir>0?-1:1;   // side view faces left
-        ty=-Math.abs(Math.sin(e*8))*7; rot=Math.sin(e*8)*5; sy=1-Math.abs(Math.cos(e*8))*0.04;
-        if((dir>0&&x>=targetX)||(dir<0&&x<=targetX)){ x=targetX; next(); }
+        setView('side'); flip=dir>0?-1:1;            // side art faces left
+        const speed=58; x+=dir*speed*dt; phase+=dt*7.2;
+        const sw=Math.sin(phase), leg=sw*24;
+        legN.style.transform=`rotate(${leg}deg) translateY(${Math.min(0,-sw)*4}%)`;
+        legF.style.transform=`rotate(${-leg}deg) translateY(${Math.min(0,sw)*4}%)`;
+        arm.style.transform=`rotate(${-sw*16}deg)`;
+        ty=-Math.abs(Math.cos(phase))*4; rot=Math.sin(phase)*1.5;
+        if(Math.random()<dt*0.10){ go('gaze',rand(1400,2400)); break; }          // stop and look at you
+        if(Math.random()<dt*0.07){ laugh(false); break; }                       // burst out laughing mid-walk
+        if((dir>0&&x>=targetX)||(dir<0&&x<=targetX)){ x=targetX; targetX=null; next(); }
         break; }
-      case 'sit': setView('front'); { const k=Math.min(1,e*4); sy=1-0.14*k; sx=1+0.1*k; } break;
-      case 'sleep': setView('front'); sy=0.9+Math.sin(e*1.6)*0.025; sx=1.06; rot=6;
+      case 'sit': setView('front'); track=true; { const k=Math.min(1,e*4); sy=1-0.13*k; sx=1+0.09*k; } break;
+      case 'sleep': setView('front'); sy=0.9+Math.sin(e*1.6)*0.025; sx=1.05; rot=5;
         if(Math.random()<dt*0.9){ const r=pet.getBoundingClientRect(); const z=document.createElement('span'); z.className='zzz'; z.textContent=pick(['Z','z','Zz']); z.style.left=(r.right-20)+'px'; z.style.top=(r.top+10)+'px'; document.body.appendChild(z); setTimeout(()=>z.remove(),2300); }
         break;
-      case 'hop': setView('front'); { const p=e/0.7; ty=-Math.sin(Math.min(1,p)*Math.PI)*45; sy= p<0.15?0.85:(p>0.9?0.88:1.06); sx=2-sy; } break;
-      case 'laugh': setView('front'); rot=Math.sin(e*40)*7; sy=1+Math.sin(e*25)*0.06; sx=1-Math.sin(e*25)*0.04; ty=-Math.abs(Math.sin(e*12))*6;
-        if(Math.random()<dt*3) burst(1); break;
-      case 'held': rot=Math.max(-30,Math.min(30,vx*2)); sy=1.08; sx=0.94; ty=Math.sin(t/60)*1.5; break;
-      case 'fall':
+      case 'hop': setView('front'); track=true; { const p=e/0.7; ty=-Math.sin(Math.min(1,p)*Math.PI)*45; sy=p<0.15?0.85:(p>0.9?0.88:1.06); sx=2-sy; } break;
+      case 'laugh': { setView('laugh'); const f=Math.min(71,Math.floor(e*12)); V.laugh.style.backgroundPosition=`${(f%12)/11*100}% ${Math.floor(f/12)/5*100}%`; flip=dir>0?-1:1;
+        if(Math.random()<dt*2) burst(1);
+        if(t>until){ if(targetX!==null && Math.abs(targetX-x)>4) startWalk(); else next(); } break; }
+      case 'held': setView('front'); track=true; rot=Math.max(-30,Math.min(30,vx*2)); sy=1.08; sx=0.94; ty=Math.sin(t/60)*1.5; break;
+      case 'fall': setView('front');
         vy+=1800*dt; x+=vx*60*dt; y+=vy*dt; vx*=0.98; rot=vx*1.5;
         if(x<0){x=0;vx=-vx*0.5} if(x>innerWidth-W()){x=innerWidth-W();vx=-vx*0.5}
         if(y>=g){ y=g; if(vy>500){ vy=-vy*0.35; say(pick(['哎哟','呱！','好疼'])); } else { vy=0; vx=0; go('land',350); } }
         break;
-      case 'land': setView('front'); { const p=e/0.35; sy=0.75+0.25*p; sx=1.25-0.25*p; } break;
+      case 'land': setView('front'); { const p=e/0.35; sy=0.75+0.25*p; sx=1.25-0.25*p; } if(t>until) next(); break;
     }
-    if(state!=='held' && state!=='fall'){ y+= (g-y)*0.3; }
-    if((state==='land'||state==='laugh'||state==='idle'||state==='look'||state==='sit'||state==='sleep'||state==='hop') && t>until) next();
+    if(state!=='held'&&state!=='fall') y+=(g-y)*0.3;
+    if(['idle','sit','sleep','hop'].includes(state) && t>until) next();
+    eyes(track);
     x=Math.max(0,Math.min(innerWidth-W(),x));
     pet.style.transform=`translate(${x}px,${y}px)`;
     body.style.transform=`translateY(${ty}px) rotate(${rot}deg) scale(${sx*flip},${sy})`;
     if(!hidden) requestAnimationFrame(frame);
   }
-  go('idle',1500); requestAnimationFrame(frame);
+  setView('front'); go('idle',1500); requestAnimationFrame(frame);
   addEventListener('resize',()=>{ if(state!=='held') y=ground(); });
-
-  // ----- show / hide -----
   const tg=document.getElementById('petToggle');
   tg.onclick=()=>{ hidden=!hidden; pet.style.display=hidden?'none':''; tg.textContent=hidden?'🐸 召唤奶蛙':'🐸 收起奶蛙';
-    if(!hidden){ prev=now(); y=-H(); vx=0; vy=0; x=rand(0,innerWidth-W()); state='fall'; requestAnimationFrame(frame); } };
+    if(hidden) stopAudio(); else { prev=now(); y=-H(); vx=0; vy=0; x=rand(0,innerWidth-W()); targetX=null; state='fall'; requestAnimationFrame(frame); } };
 })();
 </script>
 </body>
