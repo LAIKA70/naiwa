@@ -150,23 +150,33 @@ VIDEOS.forEach(v=>{
   function play(name){ stopAudio(); const a=SND[name]; a._want=true; a.muted=false; try{ a.currentTime=0; a.volume=1; a.play().catch(()=>{}); }catch(e){} }
 
   // ----- transparent video clips: "stacked alpha" mp4 (colour on top, matte below), drawn to a canvas on every decoded frame -----
-  const cv=V.clip, cx=cv.getContext('2d',{willReadFrequently:true}), off=document.createElement('canvas'), ox=off.getContext('2d',{willReadFrequently:true});
+  // GPU compositing: one textured quad, colour from the top half, alpha from the bottom half (premultiplied, linear filtering)
+  const cv=V.clip, gl=cv.getContext('webgl',{premultipliedAlpha:true,alpha:true,antialias:false});
+  let prog, tex;
+  (function initGL(){
+    const vs='attribute vec2 p;varying vec2 uv;void main(){uv=vec2((p.x+1.)*.5,(1.-p.y)*.5);gl_Position=vec4(p,0.,1.);}';
+    const fs='precision mediump float;varying vec2 uv;uniform sampler2D t;void main(){vec3 c=texture2D(t,vec2(uv.x,uv.y*.5)).rgb;float a=texture2D(t,vec2(uv.x,.5+uv.y*.5)).r;gl_FragColor=vec4(c*a,a);}';
+    const sh=(type,src)=>{const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);return s;};
+    prog=gl.createProgram(); gl.attachShader(prog,sh(gl.VERTEX_SHADER,vs)); gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fs)); gl.linkProgram(prog); gl.useProgram(prog);
+    const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b); gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+    const loc=gl.getAttribLocation(prog,'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc,2,gl.FLOAT,false,0,0);
+    tex=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,tex);
+    for(const [k,v] of [[gl.TEXTURE_MIN_FILTER,gl.LINEAR],[gl.TEXTURE_MAG_FILTER,gl.LINEAR],[gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE],[gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D,k,v);
+  })();
   function makeClip(src,w,h,height){ const v=document.createElement('video'); v.src=src; v.muted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.preload='auto'; v.load(); return {v,w,h,height}; }
-  const CLIPS={laugh:makeClip('assets/laugh.mp4',260,360,1.08),battle:makeClip('assets/battle.mp4',442,360,1.148)};
-  let cur=null, img=null;
+  const CLIPS={laugh:makeClip('assets/laugh.mp4',522,720,1.077),battle:makeClip('assets/battle.mp4',816,640,1.145)};
+  let cur=null;
   function drawClip(){
-    if(!cur) return; const {v,w,h}=cur;
+    if(!cur) return; const {v}=cur;
     if(v.readyState>=2){
-      ox.drawImage(v,0,0,w,h*2);
-      const src=ox.getImageData(0,0,w,h*2).data, d=img.data, n=w*h*4;
-      for(let i=0;i<n;i+=4){ d[i]=src[i]; d[i+1]=src[i+1]; d[i+2]=src[i+2]; d[i+3]=src[n+i]; }
-      cx.putImageData(img,0,0);
+      gl.bindTexture(gl.TEXTURE_2D,tex); gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,v);
+      gl.viewport(0,0,cv.width,cv.height); gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT); gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
     }
     if(!v.paused && !v.ended){ if(v.requestVideoFrameCallback) v.requestVideoFrameCallback(drawClip); else requestAnimationFrame(drawClip); }
   }
   function startClip(name){
     stopClip(); cur=CLIPS[name]; const {v,w,h,height}=cur;
-    cv.width=w; cv.height=h; off.width=w; off.height=h*2; img=cx.createImageData(w,h); cx.clearRect(0,0,w,h);
+    cv.width=w; cv.height=h; gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
     cv.style.height=(height*100)+'%'; cv.style.aspectRatio=w+'/'+h;
     try{ v.currentTime=0; }catch(e){} v.play().then(drawClip).catch(()=>{}); drawClip();
   }
