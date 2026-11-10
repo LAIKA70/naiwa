@@ -126,7 +126,7 @@ footer p{margin:4px 0}
 #pet .v-side .shin{transform-origin:51.8% 50%}
 #pet .v-side .leg.far{filter:brightness(.78)}
 #pet .v-back{aspect-ratio:275/443}#pet .v-back img{left:0;top:0;width:100%;height:100%}
-#pet .v-laugh{aspect-ratio:215/300;height:108%;background:url(assets/laugh-sprite.webp) 0 0/1200% 600% no-repeat}
+#pet .v-clip{pointer-events:none}
 #pet .bubble{position:absolute;left:50%;bottom:100%;transform:translate(-50%,-6px);background:#fff;color:#2b2414;border:2px solid #2b2414;border-radius:12px;padding:2px 10px;font-family:"ZCOOL KuaiLe";font-size:16px;white-space:nowrap;opacity:0;transition:opacity .2s;pointer-events:none}
 #pet .bubble.show{opacity:1}
 .zzz,.fx{position:fixed;z-index:41;pointer-events:none;font-family:"ZCOOL KuaiLe";color:#2b2414;font-size:20px;animation:zz 2.2s ease-out forwards}
@@ -224,7 +224,6 @@ footer p{margin:4px 0}
     <img class="fl torso" src="assets/f-torso.png" alt="">
     <i class="pupil" style="left:40.1%"></i><i class="pupil" style="left:60.6%"></i>
     <i class="lid" style="left:40.1%"></i><i class="lid" style="left:60.6%"></i>
-    <span class="prop" id="petProp"></span>
     <img class="fl armL" src="assets/f-armL.png" alt=""><img class="fl armR" src="assets/f-armR.png" alt="">
   </div>
   <div class="view v-side">
@@ -232,8 +231,7 @@ footer p{margin:4px 0}
     <div class="leg near"><img class="thigh" src="assets/rig-thigh.png" alt=""><div class="shin"><img src="assets/rig-shin.png" alt=""></div></div>
     <img class="torso" src="assets/rig-body.png" alt=""><img class="arm" src="assets/rig-arm.png" alt="">
   </div>
-  <div class="view v-back"><img src="assets/back.png" alt=""></div>
-  <div class="view v-laugh"></div>
+  <canvas class="view v-clip"></canvas>
 </div><div class="bubble" id="petBubble"></div></div>
 <button id="soundTip">🔊 点一下开启奶蛙声音</button>
 <button id="petToggle">🐸 收起奶蛙</button>
@@ -341,11 +339,13 @@ renderQ();
 
 // ---------- desktop pet ----------
 (function(){
-  const pet=document.getElementById('pet'), body=pet.querySelector('.body'), bub=document.getElementById('petBubble'), prop=document.getElementById('petProp');
-  const V={front:pet.querySelector('.v-front'),side:pet.querySelector('.v-side'),back:pet.querySelector('.v-back'),laugh:pet.querySelector('.v-laugh')};
-  const F={aL:V.front.querySelector('.armL'),aR:V.front.querySelector('.armR'),lL:V.front.querySelector('.legL'),lR:V.front.querySelector('.legR'),pupils:V.front.querySelectorAll('.pupil'),lids:V.front.querySelectorAll('.lid')};
+  const pet=document.getElementById('pet'), body=pet.querySelector('.body'), bub=document.getElementById('petBubble');
+  const V={front:pet.querySelector('.v-front'),side:pet.querySelector('.v-side'),clip:pet.querySelector('.v-clip')};
+  const F={aL:V.front.querySelector('.armL'),aR:V.front.querySelector('.armR'),pupils:V.front.querySelectorAll('.pupil'),lids:V.front.querySelectorAll('.lid')};
   const S={near:V.side.querySelector('.leg.near'),far:V.side.querySelector('.leg.far'),arm:V.side.querySelector('.arm')};
   S.nearShin=S.near.querySelector('.shin'); S.farShin=S.far.querySelector('.shin');
+
+  // ----- sounds (browsers only allow sound after the first tap on the page) -----
   const SND={laugh:new Audio('assets/laugh.mp3'),battle:new Audio('assets/battle.mp3')};
   for(const k in SND) SND[k].preload='auto';
   let unlocked=false;
@@ -353,21 +353,42 @@ renderQ();
     for(const k in SND){ const a=SND[k]; a.muted=true; a.play().then(()=>{ if(!a._want){a.pause();a.currentTime=0;} a.muted=false; }).catch(()=>{a.muted=false}); }
     const b=document.getElementById('soundTip'); if(b) b.remove(); }
   ['pointerdown','keydown','touchstart'].forEach(ev=>addEventListener(ev,unlock,{once:true,passive:true}));
+  function stopAudio(){ for(const k in SND){ SND[k]._want=false; try{SND[k].pause()}catch(e){} } }
   function play(name){ stopAudio(); const a=SND[name]; a._want=true; a.muted=false; try{ a.currentTime=0; a.volume=1; a.play().catch(()=>{}); }catch(e){} }
+
+  // ----- transparent video clips: "stacked alpha" mp4 (colour on top, matte below), drawn to a canvas on every decoded frame -----
+  const cv=V.clip, cx=cv.getContext('2d',{willReadFrequently:true}), off=document.createElement('canvas'), ox=off.getContext('2d',{willReadFrequently:true});
+  function makeClip(src,w,h,height){ const v=document.createElement('video'); v.src=src; v.muted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.preload='auto'; v.load(); return {v,w,h,height}; }
+  const CLIPS={laugh:makeClip('assets/laugh.mp4',260,360,1.08),battle:makeClip('assets/battle.mp4',442,360,1.148)};
+  let cur=null, img=null;
+  function drawClip(){
+    if(!cur) return; const {v,w,h}=cur;
+    if(v.readyState>=2){
+      ox.drawImage(v,0,0,w,h*2);
+      const src=ox.getImageData(0,0,w,h*2).data, d=img.data, n=w*h*4;
+      for(let i=0;i<n;i+=4){ d[i]=src[i]; d[i+1]=src[i+1]; d[i+2]=src[i+2]; d[i+3]=src[n+i]; }
+      cx.putImageData(img,0,0);
+    }
+    if(!v.paused && !v.ended){ if(v.requestVideoFrameCallback) v.requestVideoFrameCallback(drawClip); else requestAnimationFrame(drawClip); }
+  }
+  function startClip(name){
+    stopClip(); cur=CLIPS[name]; const {v,w,h,height}=cur;
+    cv.width=w; cv.height=h; off.width=w; off.height=h*2; img=cx.createImageData(w,h); cx.clearRect(0,0,w,h);
+    cv.style.height=(height*100)+'%'; cv.style.aspectRatio=w+'/'+h;
+    try{ v.currentTime=0; }catch(e){} v.play().then(drawClip).catch(()=>{}); drawClip();
+  }
+  function stopClip(){ if(cur){ try{cur.v.pause()}catch(e){} cur=null; } }
+
   const W=()=>pet.offsetWidth, H=()=>pet.offsetHeight, ground=()=>innerHeight-H()-14;
   const now=()=>performance.now(), rand=(a,b)=>a+Math.random()*(b-a), pick=a=>a[Math.floor(Math.random()*a.length)];
   let x=rand(0,innerWidth-W()), y=ground(), vx=0, vy=0, dir=-1, view='', state='idle', t0=now(), until=0, targetX=null, hidden=false, phase=0;
-  let mx=innerWidth/2, my=innerHeight/2, lastMouse=0, nextBlink=now()+3000, fxTick=0;
-  addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY;lastMouse=now()});
-  addEventListener('touchstart',e=>{const t=e.touches[0]; if(t){mx=t.clientX;my=t.clientY;lastMouse=now()}},{passive:true});
+  let mx=innerWidth/2, my=innerHeight/2, nextBlink=now()+3000;
+  addEventListener('pointermove',e=>{mx=e.clientX;my=e.clientY});
+  addEventListener('touchstart',e=>{const t=e.touches[0]; if(t){mx=t.clientX;my=t.clientY}},{passive:true});
 
   function setView(v){ if(view===v) return; view=v; for(const k in V) V[k].style.display=k===v?'block':'none'; }
   function say(txt,ms=1400){ bub.textContent=txt; bub.classList.add('show'); clearTimeout(say.t); say.t=setTimeout(()=>bub.classList.remove('show'),ms); }
-  function go(st,dur){ state=st; t0=now(); until=t0+dur; fxTick=0; }
-  function stopAudio(){ for(const k in SND){ SND[k]._want=false; try{SND[k].pause()}catch(e){} } }
-  function fx(txt,dx=0,dy=0,size=20){ const r=pet.getBoundingClientRect(); const z=document.createElement('span'); z.className='fx'; z.textContent=txt;
-    z.style.left=(r.left+r.width/2+dx)+'px'; z.style.top=(r.top+r.height*0.35+dy)+'px'; z.style.fontSize=size+'px'; z.style.setProperty('--dx',(Math.random()*40-20)+'px');
-    document.body.appendChild(z); setTimeout(()=>z.remove(),1100); }
+  function go(st,dur){ if((state==='laugh'||state==='battle')&&st!=='laugh'&&st!=='battle'){ stopClip(); stopAudio(); } state=st; t0=now(); until=t0+dur; }
   function burst(n){
     const r=pet.getBoundingClientRect();
     for(let i=0;i<n;i++){ const s=document.createElement('span'); s.className='burst';
@@ -377,154 +398,82 @@ renderQ();
       s.style.setProperty('--dx',Math.cos(a)*d+'px'); s.style.setProperty('--dy',Math.sin(a)*d+'px'); s.style.setProperty('--r',(Math.random()*60-30)+'deg');
       document.body.appendChild(s); setTimeout(()=>s.remove(),1400); }
   }
-  // ----- actions -----
-  function laugh(byUser){
-    go('laugh',6000); setView('laugh'); bub.classList.remove('show');
-    play('laugh');
-    burst(byUser?6:3);
-  }
-  window.petLaugh=()=>{ if(hidden) return; laugh(true); };
-  function battle(){ go('battle',12600); play('battle'); bub.classList.remove('show'); }
+
+  // ----- the two actions -----
+  function laugh(byUser){ go('laugh',6200); setView('clip'); bub.classList.remove('show'); startClip('laugh'); play('laugh'); burst(byUser?6:3); }
+  function battle(){ go('battle',12900); setView('clip'); bub.classList.remove('show'); startClip('battle'); play('battle'); }
+  window.petLaugh=()=>{ if(!hidden) laugh(true); };
   window.petBattle=()=>{ if(!hidden) battle(); };
+
   function startWalk(){ if(targetX===null) targetX=rand(0,innerWidth-W()); dir=targetX>x?1:-1; go('walk',99999); }
-  const ACTIONS=[ // [weight, start]
-    [26,()=>{ targetX=rand(0,innerWidth-W()); dir=targetX>x?1:-1; if(Math.random()<0.2) go('turn',600); else startWalk(); }],
-    [8, ()=>{ if(now()-lastMouse<4000 && my>innerHeight*0.45){ targetX=Math.max(0,Math.min(innerWidth-W(),mx-W()/2)); say(pick(['你在叫我吗','来了来了','呱？'])); startWalk(); } else go('idle',rand(1500,3000)); }],
-    [9, ()=>{ go('idle',rand(1800,3200)); if(Math.random()<0.35) say(pick(['呱','……','嗯？','今天也很黄','有人吗'])); }],
-    [8, ()=>go('gaze',rand(1800,2800))],
-    [6, ()=>{ go('wave',2200); say(pick(['嗨~','你好呀','👋'])); }],
-    [4, ()=>{ go('salute',2200); say('敬礼！'); }],
-    [7, ()=>{ go('pat',rand(2500,3500)); say(pick(['拍拍肚皮','咚咚咚','肚子饿了'])); }],
-    [6, ()=>{ go('dance',rand(3500,5000)); say(pick(['蹦迪！','动次打次','♪♪♪'])); }],
-    [4, ()=>{ go('stomp',2600); say(pick(['哼！','跺跺跺','气死我了'])); }],
-    [4, ()=>go('wriggle',2000)],
-    [3, ()=>{ go('fly',4200); }],
-    [5, ()=>battle()],
-    [5, ()=>{ go('read',rand(5000,7000)); }],
-    [4, ()=>go('sit',rand(2500,4000))],
-    [5, ()=>go('sleep',rand(5000,8000))],
-    [4, ()=>go('hop',700)],
-  ];
-  const TOTAL=ACTIONS.reduce((s,a)=>s+a[0],0);
-  function next(){ let r=Math.random()*TOTAL; for(const [w,f] of ACTIONS){ if((r-=w)<0){ f(); return; } } }
+  function next(){
+    const r=Math.random();
+    if(r<0.50){ targetX=rand(0,innerWidth-W()); startWalk(); }
+    else if(r<0.72) go('idle',rand(1800,3500));
+    else if(r<0.86) laugh(false);
+    else battle();
+  }
   function resume(){ if(targetX!==null && Math.abs(targetX-x)>4) startWalk(); else next(); }
 
-  // ----- drag / click -----
+  // ----- click = laugh (interrupts anything), drag = pick up -----
   let down=null, held=false, last=null;
   pet.addEventListener('pointerdown',e=>{ down={x:e.clientX,y:e.clientY,ox:e.clientX-x,oy:e.clientY-y}; last={x:e.clientX,y:e.clientY,t:now()}; pet.setPointerCapture(e.pointerId); e.preventDefault(); });
   pet.addEventListener('pointermove',e=>{
     if(!down) return;
-    if(!held && Math.hypot(e.clientX-down.x,e.clientY-down.y)>6){ held=true; stopAudio(); prop.style.display='none'; pet.classList.add('held'); state='held'; say(pick(['放我下来！','呱！？','啊啊啊']),99999); }
+    if(!held && Math.hypot(e.clientX-down.x,e.clientY-down.y)>6){ held=true; stopClip(); stopAudio(); pet.classList.add('held'); state='held'; say(pick(['放我下来！','呱！？','啊啊啊']),99999); }
     if(held){ const t=now(), dt=Math.max(1,t-last.t); vx=(e.clientX-last.x)/dt*16; vy=(e.clientY-last.y)/dt*16; last={x:e.clientX,y:e.clientY,t}; x=e.clientX-down.ox; y=e.clientY-down.oy; }
   });
   function release(){ if(!down) return;
     if(held){ held=false; pet.classList.remove('held'); bub.classList.remove('show'); state='fall'; }
-    else { prop.style.display='none'; laugh(true); count++; cEl.textContent=count; try{localStorage.setItem('naiwa-count',count)}catch(e){} }
+    else { laugh(true); count++; cEl.textContent=count; try{localStorage.setItem('naiwa-count',count)}catch(e){} }
     down=null; }
   pet.addEventListener('pointerup',release); pet.addEventListener('pointercancel',release);
 
-  // ----- render helpers -----
-  function front(P){
-    F.aL.style.transform=`rotate(${P.aL}deg)`; F.aR.style.transform=`rotate(${P.aR}deg)`;
-    F.lL.style.transform=`translateY(${P.lL}%) rotate(${P.rL}deg)`; F.lR.style.transform=`translateY(${P.lR}%) rotate(${P.rR}deg)`;
-    F.lids.forEach(l=>l.style.transform=`scaleY(${P.lid})`);
+  function front(aL,aR,lid,track){
+    F.aL.style.transform=`rotate(${aL}deg)`; F.aR.style.transform=`rotate(${aR}deg)`;
+    F.lids.forEach(l=>l.style.transform=`scaleY(${lid})`);
     const fr=V.front.getBoundingClientRect(), w=fr.width, m=w*0.017;
-    F.pupils.forEach((p,i)=>{
-      let dx=0, dy=0;
-      if(P.eyes==='track'){ const ex=fr.left+w*(i?0.606:0.401), ey=fr.top+fr.height*0.083, ddx=mx-ex, ddy=my-ey, d=Math.hypot(ddx,ddy)||1, k=Math.min(1,d/120); dx=ddx/d*m*k; dy=ddy/d*m*k; }
-      else if(P.eyes==='down'){ dy=m; }
-      else if(P.eyes==='up'){ dy=-m; }
-      p.style.transform=`translate(${dx}px,${dy}px)`;
-    });
-    prop.style.display=P.prop?'block':'none'; if(P.prop) prop.textContent=P.prop;
+    F.pupils.forEach((p,i)=>{ let dx=0,dy=0;
+      if(track){ const ex=fr.left+w*(i?0.606:0.401), ey=fr.top+fr.height*0.083, ddx=mx-ex, ddy=my-ey, d=Math.hypot(ddx,ddy)||1, k=Math.min(1,d/120); dx=ddx/d*m*k; dy=ddy/d*m*k; }
+      p.style.transform=`translate(${dx}px,${dy}px)`; });
   }
 
   let prev=now();
   function frame(t){
     const dt=Math.min(50,t-prev)/1000; prev=t; const e=(t-t0)/1000, g=ground();
-    let sx=1, sy=1, rot=0, ty=0, flip=1;
-    const P={aL:0,aR:0,lL:0,lR:0,rL:0,rR:0,lid:0,eyes:'track',prop:''};
-    // blink
-    if(t>nextBlink){ if(t>nextBlink+130) nextBlink=t+rand(2200,5000); else P.lid=1; }
-    const breathe=Math.sin(t/1000*3);
+    let sx=1, sy=1, rot=0, ty=0, flip=1, aL=0, aR=0, lid=0;
+    if(t>nextBlink){ if(t>nextBlink+130) nextBlink=t+rand(2200,5000); else lid=1; }
+    const br=Math.sin(t/1000*2.6);
     switch(state){
-      case 'idle': setView('front'); sy=1+breathe*0.015; sx=1-breathe*0.01; P.aL=2+breathe*2; P.aR=-2-breathe*2; break;
-      case 'gaze': setView('front'); rot=Math.sin(e*1.5)*2; P.aL=2; P.aR=-2; if(e<0.15) sy=0.96;
-        if(e>0.3&&e<0.36) say(pick(['👀','？','看我干嘛','呱？']),1200);
-        if(t>until) resume(); break;
-      case 'wave': setView('front'); { const k=Math.min(1,e*4); P.aR=-(120+Math.sin(e*12)*22)*k; P.aL=4; rot=Math.sin(e*6)*2*k; } if(t>until) resume(); break;
-      case 'salute': setView('front'); { const k=Math.min(1,e*5); P.aR=-158*k; sy=1+0.03*k; } P.eyes='center'; if(t>until) resume(); break;
-      case 'pat': { setView('front'); const s=Math.abs(Math.sin(e*9)); P.aL=-(12+s*24); P.aR=12+s*24; sy=1+(1-s)*0.025; sx=1-(1-s)*0.015;
-        const k=Math.floor(e*9/Math.PI); if(k>fxTick){ fxTick=k; fx(pick(['啪','啪！','咚']),rand(-15,15),20,16); } if(t>until) resume(); break; }
-      case 'dance': { setView('front'); const s=Math.sin(e*8);
-        P.aL=70+s*70; P.aR=-(70-s*70); rot=Math.sin(e*4)*9; P.lL=-Math.max(0,s)*12; P.lR=-Math.max(0,-s)*12; P.rL=Math.max(0,s)*12; P.rR=-Math.max(0,-s)*12;
-        ty=-Math.abs(s)*6; const k=Math.floor(e*2.5); if(k>fxTick){ fxTick=k; fx(pick(['♪','♫','♬']),rand(-40,40),-20,22); } if(t>until) resume(); break; }
-      case 'stomp': { setView('front'); const k=e*3, i=Math.floor(k)%2, f=k%1, lift=Math.sin(Math.min(1,f*1.4)*Math.PI);
-        if(i===0){P.lL=-lift*18;P.rL=lift*10}else{P.lR=-lift*18;P.rR=-lift*10}
-        P.aL=20; P.aR=-20; rot=(i?-1:1)*lift*4; sy=f>0.7?0.94:1; sx=2-sy;
-        if(Math.floor(k)>fxTick-1&&f>0.7&&fxTick<=Math.floor(k)){ fxTick=Math.floor(k)+1; fx('咚',i?25:-25,55,18); }
-        if(t>until) resume(); break; }
-      case 'wriggle': setView('front'); rot=Math.sin(e*14)*9; sx=1+Math.sin(e*28)*0.04; sy=2-sx; P.aL=20+Math.sin(e*14)*25; P.aR=-20+Math.sin(e*14)*25; P.lid=0.5; if(t>until) resume(); break;
-      case 'fly': { setView('front'); const flap=40+Math.abs(Math.sin(e*14))*110; P.aL=flap; P.aR=-flap; P.eyes='up'; P.lL=-6; P.lR=-6;
-        const h=Math.min(1,e/1.2)*Math.min(160,innerHeight*0.35)+Math.sin(e*3)*8; y=g-h; rot=Math.sin(e*2)*5;
-        if(e>0.6&&e<0.66) say(pick(['中国人能飞！','我飞起来了','起飞~']),1800);
-        if(t>until){ vx=0; vy=0; state='fall'; } break; }
-      case 'read': { setView('front'); const k=Math.min(1,e*4); sy=1-0.12*k; sx=1+0.08*k; P.aL=-26*k; P.aR=26*k; P.eyes='down'; P.prop='📖';
-        if(e>2&&e<2.05) say(pick(['嗯……','原来如此','这本书好看']),1500); if(t>until) resume(); break; }
-      case 'battle': { setView('front'); P.eyes='center';
-        if(e<2.6){                                   // 蓄力：弓腰捧肚子
-          const k=Math.min(1,e*3); sy=1-0.1*k; sx=1+0.05*k; rot=Math.sin(e*5)*3; P.aL=-24*k; P.aR=24*k; P.eyes='down'; P.lid=0.35;
-          if(e>0.4&&e<0.46) say('……',1600);
-        } else if(e<3.2){                            // 起势
-          const k=(e-2.6)/0.6; sy=0.9+0.13*k; ty=-k*14; P.aL=-24+k*110; P.aR=24-k*60; P.lid=0.3;
-          if(e<2.66) say('战斗模式！',2200);
-        } else if(e<11.4){                           // 马步 + 推掌，左右换手
-          const seg=Math.floor((e-3.2)/2), side=seg%2?-1:1, f=((e-3.2)%2)/2;
-          const thrust=f<0.12?f/0.12:1;
-          P.rL=16; P.rR=-16; P.lL=-2; P.lR=-2;          // 外八字马步
-          ty=10+Math.sin(e*2.2)*2; sx=1.06; sy=0.95; P.lid=0.3;
-          if(side>0){ P.aL=60+thrust*45; P.aR=28; rot=-5*thrust; } else { P.aR=-(60+thrust*45); P.aL=-28; rot=5*thrust; }
-          if(f<0.02 && fxTick!==seg+1){ fxTick=seg+1; fx(pick(['嘿！','哈！','喝！','哼哈！']),side*-35,-10,22); }
-        } else {                                     // 收势
-          const k=Math.min(1,(e-11.4)/0.5); P.aL=(1-k)*60; P.aR=-(1-k)*60; P.rL=16*(1-k); P.rR=-16*(1-k); ty=10*(1-k);
-          if(e>11.5&&e<11.56) say(pick(['哼','承让了','收工']),1500);
-        }
-        if(t>until) resume(); break; }
-      case 'turn': setView('back'); sy=1+Math.sin(e*12)*0.02; if(t>until) startWalk(); break;
+      case 'idle': setView('front'); sy=1+br*0.012; sx=1-br*0.008; aL=1.5+br*1.5; aR=-aL; if(t>until) next(); break;
+      case 'gaze': setView('front'); sy=1+br*0.012; aL=1.5; aR=-1.5; if(e>0.25&&e<0.27) say(pick(['👀','？','看我干嘛','呱？']),1200); if(t>until) resume(); break;
       case 'walk': {
         setView('side'); flip=dir>0?-1:1;            // side art faces left
         x+=dir*55*dt; phase+=dt*7;
         for(const [leg,shin,ph] of [[S.near,S.nearShin,phase],[S.far,S.farShin,phase+Math.PI]]){
-          const hip=Math.sin(ph)*24, knee=-Math.max(0,Math.cos(ph))*40;
-          leg.style.transform=`rotate(${hip}deg)`; shin.style.transform=`rotate(${knee}deg)`;
-        }
+          leg.style.transform=`rotate(${Math.sin(ph)*24}deg)`; shin.style.transform=`rotate(${-Math.max(0,Math.cos(ph))*40}deg)`; }
         S.arm.style.transform=`rotate(${-Math.sin(phase)*18}deg)`;
         ty=-Math.abs(Math.cos(phase))*5; rot=-2+Math.sin(phase*2)*1.2;
-        if(Math.random()<dt*0.09){ go('gaze',rand(1400,2400)); break; }
-        if(Math.random()<dt*0.06){ laugh(false); break; }
-        if(Math.random()<dt*0.03){ go('wave',1800); say('嗨~'); break; }
+        if(Math.random()<dt*0.09){ go('gaze',rand(1400,2400)); break; }      // stop and look at you
+        if(Math.random()<dt*0.05){ laugh(false); break; }                   // burst out laughing mid-walk
+        if(Math.random()<dt*0.02){ battle(); break; }                       // enter battle mode mid-walk
         if((dir>0&&x>=targetX)||(dir<0&&x<=targetX)){ x=targetX; targetX=null; next(); }
         break; }
-      case 'sit': setView('front'); { const k=Math.min(1,e*4); sy=1-0.13*k; sx=1+0.09*k; P.aL=-8*k; P.aR=8*k; } break;
-      case 'sleep': setView('front'); P.lid=1; P.eyes='center'; sy=0.9+Math.sin(e*1.6)*0.025; sx=1.05; rot=5; P.aL=-10; P.aR=10;
-        if(Math.random()<dt*0.9){ const r=pet.getBoundingClientRect(); const z=document.createElement('span'); z.className='zzz'; z.textContent=pick(['Z','z','Zz']); z.style.left=(r.right-20)+'px'; z.style.top=(r.top+10)+'px'; document.body.appendChild(z); setTimeout(()=>z.remove(),2300); }
+      case 'laugh': case 'battle':
+        setView('clip'); flip=(state==='laugh'&&dir>0)?-1:1;
+        if(state==='laugh'&&Math.random()<dt*2) burst(1);
+        if(t>until || (cur&&cur.v.ended)){ stopClip(); resume(); }
         break;
-      case 'hop': setView('front'); { const p=e/0.7; ty=-Math.sin(Math.min(1,p)*Math.PI)*45; sy=p<0.15?0.85:(p>0.9?0.88:1.06); sx=2-sy; P.aL=p<0.9?45:0; P.aR=p<0.9?-45:0; } break;
-      case 'laugh': { setView('laugh'); const f=Math.min(71,Math.floor(e*12)); V.laugh.style.backgroundPosition=`${(f%12)/11*100}% ${Math.floor(f/12)/5*100}%`; flip=dir>0?-1:1;
-        if(Math.random()<dt*2) burst(1);
-        if(t>until) resume(); break; }
-      case 'held': setView('front'); rot=Math.max(-30,Math.min(30,vx*2)); sy=1.08; sx=0.94; ty=Math.sin(t/60)*1.5;
-        P.aL=50+Math.sin(t/70)*30; P.aR=-50-Math.sin(t/70+1)*30; P.lL=Math.sin(t/80)*6; P.lR=-Math.sin(t/80)*6; break;
-      case 'fall': setView('front'); P.aL=110; P.aR=-110; P.eyes='up';
+      case 'held': setView('front'); rot=Math.max(-30,Math.min(30,vx*2)); sy=1.06; sx=0.95; ty=Math.sin(t/60)*1.5; aL=50+Math.sin(t/70)*30; aR=-50-Math.sin(t/70+1)*30; break;
+      case 'fall': setView('front'); aL=100; aR=-100;
         vy+=1800*dt; x+=vx*60*dt; y+=vy*dt; vx*=0.98; rot=vx*1.5;
         if(x<0){x=0;vx=-vx*0.5} if(x>innerWidth-W()){x=innerWidth-W();vx=-vx*0.5}
         if(y>=g){ y=g; if(vy>500){ vy=-vy*0.35; say(pick(['哎哟','呱！','好疼'])); } else { vy=0; vx=0; go('land',350); } }
         break;
-      case 'land': setView('front'); { const p=e/0.35; sy=0.75+0.25*p; sx=1.25-0.25*p; P.aL=30*(1-p); P.aR=-30*(1-p); } if(t>until) next(); break;
+      case 'land': setView('front'); { const p=Math.min(1,e/0.35); sy=0.78+0.22*p; sx=1.22-0.22*p; aL=30*(1-p); aR=-aL; } if(t>until) next(); break;
     }
-    if(state!=='held'&&state!=='fall'&&state!=='fly') y+=(g-y)*0.3;
-    if(['idle','sit','sleep','hop'].includes(state) && t>until) next();
-    if(view==='front') front(P);
+    if(state!=='held'&&state!=='fall') y+=(g-y)*0.3;
+    if(view==='front') front(aL,aR,lid,state!=='fall');
     x=Math.max(0,Math.min(innerWidth-W(),x));
     pet.style.transform=`translate(${x}px,${y}px)`;
     body.style.transform=`translateY(${ty}px) rotate(${rot}deg) scale(${sx*flip},${sy})`;
@@ -532,11 +481,10 @@ renderQ();
   }
   setView('front'); go('idle',1500); requestAnimationFrame(frame);
   addEventListener('resize',()=>{ if(state!=='held') y=ground(); });
-  // debug hook: ?pet=dance etc.
-  const q=new URLSearchParams(location.search).get('pet'); if(q) setTimeout(()=>{ if(q==='walk'){targetX=x>innerWidth/2?20:innerWidth-W()-20;startWalk();} else if(q==='laugh') laugh(false); else go(q,99999); },300);
+  const q=new URLSearchParams(location.search).get('pet'); if(q) setTimeout(()=>{ if(q==='walk'){targetX=x>innerWidth/2?20:innerWidth-W()-20;startWalk();} else if(q==='laugh') laugh(false); else if(q==='battle') battle(); },300);
   const tg=document.getElementById('petToggle');
   tg.onclick=()=>{ hidden=!hidden; pet.style.display=hidden?'none':''; tg.textContent=hidden?'🐸 召唤奶蛙':'🐸 收起奶蛙';
-    if(hidden) stopAudio(); else { prev=now(); y=-H(); vx=0; vy=0; x=rand(0,innerWidth-W()); targetX=null; state='fall'; requestAnimationFrame(frame); } };
+    if(hidden){ stopClip(); stopAudio(); } else { prev=now(); y=-H(); vx=0; vy=0; x=rand(0,innerWidth-W()); targetX=null; state='fall'; requestAnimationFrame(frame); } };
 })();
 </script>
 </body>
