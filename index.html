@@ -10,8 +10,8 @@
 <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#fff7d6; --ink:#2b2414; --yellow:#ffd23f; --olive:#7a7a2e; --green:#b9e769;
-  --cream:#fffdf3; --card:#ffffff; --line:#2b2414; --muted:#6b604a; --pink:#ff6b9a;
+  --bg:#fff3c4; --ink:#2b2414; --yellow:#f6c945; --olive:#8a6a2a; --green:#9cc08a;
+  --cream:#fdf0c8; --card:#ffffff; --line:#2b2414; --muted:#6b604a; --pink:#ff6b9a;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
@@ -115,6 +115,7 @@ footer p{margin:4px 0}
 
 <header class="hero wrap" id="top">
   <span class="tag">非官方 · 纯属整活</span>
+  <img id="hero-img" src="assets/naiwa.png" alt="奶蛙" onerror="this.remove()" style="max-width:220px;width:50vw;display:block;margin:16px auto 0">
   <h1>奶 蛙</h1>
   <p class="sub">一只黄色梨形生物。核心技能只有一个：<b>点一下，就狂笑</b>。笑到发抖，笑到脱力，笑到你也开始笑。</p>
   <button class="laugh-btn" id="laugh">👉 点我狂笑</button>
@@ -213,7 +214,13 @@ let count = 0;
 try{ count = parseInt(localStorage.getItem('naiwa-count')||'0',10)||0 }catch(e){}
 const cEl = document.getElementById('count'); cEl.textContent = count;
 let ctx;
+const laughAudio = new Audio('assets/laugh.mp3'); let hasAudio = true;
+laughAudio.addEventListener('error',()=>{hasAudio=false});
 function laughSound(){
+  if(hasAudio){ try{ const a=laughAudio.cloneNode(); a.play().catch(()=>{hasAudio=false; synth()}); return; }catch(e){} }
+  synth();
+}
+function synth(){
   try{
     ctx = ctx || new (window.AudioContext||window.webkitAudioContext)();
     const n = 5 + Math.floor(Math.random()*4);
