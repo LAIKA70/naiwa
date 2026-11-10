@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>奶蛙研究所 · 点一下就狂笑</title>
+<meta name="description" content="奶蛙非官方介绍站：由来、特征、梗百科与恶搞视频合集。">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐸</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fff7d6; --ink:#2b2414; --yellow:#ffd23f; --olive:#7a7a2e; --green:#b9e769;
+  --cream:#fffdf3; --card:#ffffff; --line:#2b2414; --muted:#6b604a; --pink:#ff6b9a;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1b1a12; --ink:#fff4c2; --cream:#24221a; --card:#2c291e; --line:#ffd23f; --muted:#c9bd95;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans SC",system-ui,sans-serif;line-height:1.7;overflow-x:hidden}
+h1,h2,h3,.fun{font-family:"ZCOOL KuaiLe","Noto Sans SC",sans-serif;font-weight:400;letter-spacing:.02em}
+a{color:inherit}
+.wrap{max-width:1080px;margin:0 auto;padding:0 16px}
+
+/* nav */
+nav{position:sticky;top:0;z-index:20;background:var(--yellow);border-bottom:3px solid #2b2414}
+nav .wrap{display:flex;gap:18px;align-items:center;height:56px;overflow-x:auto;white-space:nowrap}
+nav .logo{font-family:"ZCOOL KuaiLe";font-size:22px;color:#2b2414;text-decoration:none;margin-right:auto}
+nav a.l{color:#2b2414;text-decoration:none;font-weight:700;font-size:15px}
+nav a.l:hover{text-decoration:underline wavy}
+
+/* hero */
+.hero{padding:72px 0 56px;text-align:center;position:relative}
+.tag{display:inline-block;background:var(--green);color:#2b2414;border:2px solid #2b2414;border-radius:999px;padding:2px 14px;font-weight:700;font-size:14px;transform:rotate(-3deg)}
+.hero h1{font-size:clamp(56px,13vw,140px);line-height:1;margin:18px 0 8px;text-shadow:5px 5px 0 var(--yellow),9px 9px 0 #2b2414}
+.hero p.sub{font-size:clamp(17px,2.6vw,22px);color:var(--muted);margin:0 auto 32px;max-width:620px}
+.laugh-btn{font-family:"ZCOOL KuaiLe";font-size:28px;background:var(--yellow);color:#2b2414;border:3px solid #2b2414;border-radius:20px;padding:16px 36px;box-shadow:6px 6px 0 #2b2414;cursor:pointer;transition:transform .08s,box-shadow .08s}
+.laugh-btn:hover{transform:translate(-2px,-2px);box-shadow:8px 8px 0 #2b2414}
+.laugh-btn:active{transform:translate(4px,4px);box-shadow:2px 2px 0 #2b2414}
+.counter{margin-top:14px;font-size:15px;color:var(--muted)}
+.counter b{color:var(--ink);font-size:20px}
+.burst{position:fixed;pointer-events:none;font-family:"ZCOOL KuaiLe";font-weight:900;color:#2b2414;z-index:50;animation:fly 1.3s ease-out forwards;white-space:nowrap}
+@keyframes fly{0%{opacity:1;transform:translate(0,0) scale(.6) rotate(0)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.5) rotate(var(--r))}}
+body.shake{animation:shake .35s}
+@keyframes shake{0%,100%{transform:none}20%{transform:translate(-4px,2px) rotate(-.4deg)}40%{transform:translate(4px,-2px) rotate(.4deg)}60%{transform:translate(-3px,1px)}80%{transform:translate(3px,-1px)}}
+
+/* marquee */
+.marquee{background:#2b2414;color:var(--yellow);overflow:hidden;border-block:3px solid #2b2414}
+.marquee div{display:inline-block;white-space:nowrap;padding:10px 0;font-family:"ZCOOL KuaiLe";font-size:22px;animation:mq 22s linear infinite}
+@keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+section{padding:64px 0}
+section h2{font-size:clamp(34px,6vw,52px);margin:0 0 8px}
+section .lead{color:var(--muted);margin:0 0 32px;font-size:17px}
+
+/* cards */
+.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.card{background:var(--card);border:3px solid var(--line);border-radius:18px;padding:20px 22px;box-shadow:5px 5px 0 var(--line)}
+.card h3{font-size:24px;margin:0 0 6px}
+.card p{margin:0;font-size:15.5px}
+.card .em{font-size:34px;line-height:1}
+
+/* timeline */
+.tl{position:relative;margin-left:10px;border-left:4px dashed var(--olive);padding-left:26px}
+.tl .item{position:relative;margin-bottom:26px}
+.tl .item::before{content:"";position:absolute;left:-39px;top:6px;width:22px;height:22px;border-radius:50%;background:var(--yellow);border:3px solid var(--line)}
+.tl .when{font-weight:900;font-size:14px;background:var(--green);color:#2b2414;display:inline-block;padding:0 10px;border-radius:6px;border:2px solid #2b2414}
+.tl h3{margin:6px 0 2px;font-size:22px}
+.tl p{margin:0;color:var(--muted)}
+
+/* compare table */
+.tbl{width:100%;border-collapse:separate;border-spacing:0;border:3px solid var(--line);border-radius:16px;overflow:hidden;background:var(--card);font-size:15.5px}
+.tbl th,.tbl td{padding:12px 14px;text-align:left;border-bottom:2px solid color-mix(in srgb,var(--line) 25%,transparent)}
+.tbl thead th{background:var(--yellow);color:#2b2414;font-family:"ZCOOL KuaiLe";font-weight:400;font-size:19px}
+.tbl tr:last-child td{border-bottom:none}
+.tbl td:first-child{font-weight:700;white-space:nowrap}
+.scroll-x{overflow-x:auto}
+
+/* videos */
+.vids{display:grid;gap:22px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.vid{background:var(--card);border:3px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:5px 5px 0 var(--line)}
+.vid .frame{position:relative;aspect-ratio:16/9;background:#2b2414}
+.vid iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vid .meta{padding:12px 16px 14px}
+.vid .meta h3{margin:0;font-size:20px}
+.vid .meta p{margin:2px 0 0;font-size:14px;color:var(--muted)}
+.vid .meta a{font-size:14px;font-weight:700}
+.rating{color:var(--pink);font-weight:900;letter-spacing:1px}
+
+/* quiz */
+.quiz{background:var(--card);border:3px solid var(--line);border-radius:20px;padding:24px;box-shadow:6px 6px 0 var(--line);max-width:640px}
+.quiz .q{font-size:20px;font-weight:700;margin-bottom:14px}
+.quiz button.opt{display:block;width:100%;text-align:left;margin:8px 0;padding:12px 16px;font:inherit;font-size:16px;background:var(--cream);color:var(--ink);border:2px solid var(--line);border-radius:12px;cursor:pointer}
+.quiz button.opt:hover{background:var(--yellow);color:#2b2414}
+.quiz .res{margin-top:14px;font-size:17px;min-height:1.7em}
+
+footer{padding:40px 0 60px;text-align:center;color:var(--muted);font-size:14px;border-top:3px dashed var(--olive)}
+footer p{margin:4px 0}
+@media (prefers-reduced-motion:reduce){.marquee div{animation:none}.burst{display:none}}
+</style>
+</head>
+<body>
+
+<nav><div class="wrap">
+  <a class="logo" href="#top">🐸 奶蛙研究所</a>
+  <a class="l" href="#what">是什么</a>
+  <a class="l" href="#history">编年史</a>
+  <a class="l" href="#vs">辨认</a>
+  <a class="l" href="#videos">恶搞视频</a>
+  <a class="l" href="#quiz">测验</a>
+</div></nav>
+
+<header class="hero wrap" id="top">
+  <span class="tag">非官方 · 纯属整活</span>
+  <h1>奶 蛙</h1>
+  <p class="sub">一只黄色梨形生物。核心技能只有一个：<b>点一下，就狂笑</b>。笑到发抖，笑到脱力，笑到你也开始笑。</p>
+  <button class="laugh-btn" id="laugh">👉 点我狂笑</button>
+  <div class="counter">全站已狂笑 <b id="count">0</b> 次（仅限你这台设备）</div>
+</header>
+
+<div class="marquee" aria-hidden="true"><div>
+  哈哈哈哈哈哈 🐸 呱呱呱 🐸 嘎嘎嘎嘎嘎 🐸 绷不住了 🐸 哈哈哈哈哈哈 🐸 黄色抽象宇宙 🐸 呱哈哈哈 🐸 别笑了 🐸 我说别笑了 🐸&nbsp;
+  哈哈哈哈哈哈 🐸 呱呱呱 🐸 嘎嘎嘎嘎嘎 🐸 绷不住了 🐸 哈哈哈哈哈哈 🐸 黄色抽象宇宙 🐸 呱哈哈哈 🐸 别笑了 🐸 我说别笑了 🐸&nbsp;
+</div></div>
+
+<section id="what"><div class="wrap">
+  <h2>奶蛙是什么？</h2>
+  <p class="lead">一句话：从"大笑奶龙"梗图里长出来的蛙形分支，没有单一作者，全靠网友二创养大。</p>
+  <div class="grid">
+    <div class="card"><div class="em">🍐</div><h3>体型</h3><p>梨形高个子，奶油色大肚皮，手脚比奶龙修长得多，整体比例"不太对劲"。</p></div>
+    <div class="card"><div class="em">👀</div><h3>眼睛</h3><p>凸起的圆眼，眼白泛绿，瞳孔只有一个小黑点——这就是它被叫作"蛙"的原因。</p></div>
+    <div class="card"><div class="em">🤣</div><h3>技能</h3><p>点一下就狂笑：捧腹、颤抖、笑到失控。没有剧情，没有台词，只有笑声。</p></div>
+    <div class="card"><div class="em">🌌</div><h3>世界观</h3><p>和牛来、黄色袋鼠等一起，被网友归进"黄色抽象宇宙"。</p></div>
+  </div>
+</div></section>
+
+<section id="history" style="background:var(--cream);border-block:3px solid var(--line)"><div class="wrap">
+  <h2>奶蛙编年史</h2>
+  <p class="lead">一个梗是怎么一步步失控的。</p>
+  <div class="tl">
+    <div class="item"><span class="when">起点</span><h3>奶龙出道</h3><p>奶龙是第七印象推出的动画形象：黄色、圆头、大肚子、小短手。</p></div>
+    <div class="item"><span class="when">AI 换脸潮</span><h3>"大笑奶龙"诞生</h3><p>网友流行用 AI 把视频角色换成奶龙。一段武打片被换脸后配上笑声音效，"大笑奶龙"梗图就此出现。</p></div>
+    <div class="item"><span class="when">官方下场</span><h3>越反对越火</h3><p>奶龙官方发声反对恶搞表情包，却被网友当成"官方认证"，二创反而更多，官方一度关掉评论区。</p></div>
+    <div class="item"><span class="when">分化</span><h3>奶蛙独立门户</h3><p>其中眼睛凸起、眼白泛绿的版本越看越像青蛙，被单独命名为"奶蛙"。</p></div>
+    <div class="item"><span class="when">现在</span><h3>走向国际 & 进入艺术史</h3><p>B 站出现大量鬼畜、MV 混剪和"老外看奶蛙"挑战；还有人把奶蛙塞进世界名画，开起了"奶蛙博物馆"。</p></div>
+  </div>
+</div></section>
+
+<section id="vs"><div class="wrap">
+  <h2>别认错了</h2>
+  <p class="lead">三个名字很像、但完全不是一回事的东西。</p>
+  <div class="scroll-x">
+  <table class="tbl">
+    <thead><tr><th></th><th>奶龙</th><th>🐸 奶蛙</th><th>牛奶蛙</th></tr></thead>
+    <tbody>
+      <tr><td>身份</td><td>官方动画 IP</td><td>网络迷因 / 二创</td><td>真实存在的两栖动物</td></tr>
+      <tr><td>出处</td><td>第七印象</td><td>"大笑奶龙"梗图</td><td>南美亚马逊雨林</td></tr>
+      <tr><td>眼睛</td><td>大黑瞳孔</td><td>凸眼、眼白泛绿</td><td>金色眼睛</td></tr>
+      <tr><td>四肢</td><td>短小</td><td>修长</td><td>真·青蛙腿</td></tr>
+      <tr><td>会不会狂笑</td><td>看心情</td><td><b>点一下就笑</b></td><td>不会，会分泌乳白色黏液</td></tr>
+    </tbody>
+  </table>
+  </div>
+</div></section>
+
+<section id="videos" style="background:var(--cream);border-block:3px solid var(--line)"><div class="wrap">
+  <h2>恶搞视频馆</h2>
+  <p class="lead">精选 B 站网友的奶蛙整活作品，直接在这里播放。版权归原 UP 主所有，喜欢请去原视频三连。</p>
+  <div class="vids" id="vids"></div>
+</div></section>
+
+<section id="quiz"><div class="wrap">
+  <h2>奶蛙浓度测验</h2>
+  <p class="lead">三道题，测测你的抽象浓度。</p>
+  <div class="quiz" id="quizBox"></div>
+</div></section>
+
+<footer><div class="wrap">
+  <p>🐸 奶蛙研究所 · 非官方粉丝整活站，与奶龙版权方无关</p>
+  <p>视频均为 B 站官方播放器嵌入，版权归各原作者</p>
+  <p>Made by LAIKA · 2026</p>
+</div></footer>
+
+<script>
+// ---------- videos ----------
+const VIDEOS = [
+  {bv:"BV1JBuB6PEMF", t:"奶蛙大笑（额外扩展版）", d:"核心技能完整版，建议外放。", r:5},
+  {bv:"BV1Y1uo63Edn", t:"东京食奶蛙", d:"当奶蛙闯进东京喰种。", r:5},
+  {bv:"BV1e6x56aEJN", t:"再见了，所有的奶蛙", d:"One Last Kiss × 奶蛙，莫名破防。", r:4},
+  {bv:"BV14XaJ6nEjS", t:"奶蛙你给我拿好了呀", d:"一句台词，循环到天荒地老。", r:4},
+  {bv:"BV1Ldar6ZEhk", t:"老外看奶蛙能绷住多久？", d:"跨文化抗笑挑战。", r:4},
+  {bv:"BV1Gzxy61EjX", t:"奶蛙表情包正在走向国际", d:"抽象无国界。", r:3},
+  {bv:"BV1XAd9BLE41", t:"奶蛙是从哪来的？", d:"考古向，适合正经了解一下。", r:3},
+  {bv:"BV1er3x68EZT", t:"奶蛙最全起源说法考究", d:"深度考据，越看越怪。", r:3},
+];
+const vbox = document.getElementById('vids');
+VIDEOS.forEach(v=>{
+  const el = document.createElement('div'); el.className='vid';
+  el.innerHTML = `<div class="frame"><iframe loading="lazy" allowfullscreen
+      src="https://player.bilibili.com/player.html?bvid=${v.bv}&page=1&autoplay=0&high_quality=1&danmaku=0"
+      title="${v.t}"></iframe></div>
+    <div class="meta"><h3>${v.t}</h3><p>${v.d}</p>
+    <p><span class="rating">${'🤣'.repeat(v.r)}</span> · <a href="https://www.bilibili.com/video/${v.bv}/" target="_blank" rel="noopener">去 B 站看 ↗</a></p></div>`;
+  vbox.appendChild(el);
+});
+
+// ---------- laugh button ----------
+const WORDS = ["哈哈哈","呱！","嘎嘎嘎","哈哈哈哈哈","绷不住了","呱哈哈","笑死","🐸","🤣","HAHAHA"];
+let count = 0;
+try{ count = parseInt(localStorage.getItem('naiwa-count')||'0',10)||0 }catch(e){}
+const cEl = document.getElementById('count'); cEl.textContent = count;
+let ctx;
+function laughSound(){
+  try{
+    ctx = ctx || new (window.AudioContext||window.webkitAudioContext)();
+    const n = 5 + Math.floor(Math.random()*4);
+    for(let i=0;i<n;i++){
+      const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + i*0.11;
+      o.type='square';
+      const base = 380 + Math.random()*180;
+      o.frequency.setValueAtTime(base,t);
+      o.frequency.exponentialRampToValueAtTime(base*0.55,t+0.09);
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.12,t+0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001,t+0.1);
+      o.connect(g).connect(ctx.destination); o.start(t); o.stop(t+0.11);
+    }
+  }catch(e){}
+}
+document.getElementById('laugh').addEventListener('click', e=>{
+  count++; cEl.textContent = count;
+  try{ localStorage.setItem('naiwa-count', count) }catch(err){}
+  laughSound();
+  document.body.classList.remove('shake'); void document.body.offsetWidth; document.body.classList.add('shake');
+  const r = e.currentTarget.getBoundingClientRect();
+  for(let i=0;i<10;i++){
+    const s = document.createElement('span'); s.className='burst';
+    s.textContent = WORDS[Math.floor(Math.random()*WORDS.length)];
+    s.style.left = (r.left + r.width/2) + 'px'; s.style.top = (r.top + r.height/2) + 'px';
+    s.style.fontSize = (18 + Math.random()*26) + 'px';
+    const a = Math.random()*Math.PI*2, d = 120 + Math.random()*220;
+    s.style.setProperty('--dx', Math.cos(a)*d + 'px');
+    s.style.setProperty('--dy', Math.sin(a)*d - 60 + 'px');
+    s.style.setProperty('--r', (Math.random()*80-40) + 'deg');
+    document.body.appendChild(s); setTimeout(()=>s.remove(),1400);
+  }
+});
+
+// ---------- quiz ----------
+const Q = [
+  {q:"奶蛙的核心技能是？", o:["喷火","点一下就狂笑","唱 rap","帮你写论文"], a:1},
+  {q:"奶蛙为什么叫'蛙'？", o:["它会游泳","它住在池塘","凸眼 + 眼白泛绿，像青蛙","它是牛奶蛙的亲戚"], a:2},
+  {q:"牛奶蛙是什么？", o:["奶蛙的官方名字","亚马逊的真实青蛙","一种奶茶","奶龙的表哥"], a:1},
+];
+let qi=0, score=0; const box=document.getElementById('quizBox');
+function renderQ(){
+  if(qi>=Q.length){
+    const lv = ["抽象浓度 0%：建议多去视频馆补课 📚","抽象浓度 66%：你已经开始呱了 🐸","抽象浓度 100%：你就是奶蛙本蛙 🤣🤣🤣"][Math.min(score,3)===3?2:(score>=2?1:0)];
+    box.innerHTML = `<div class="q">得分：${score} / ${Q.length}</div><div class="res fun" style="font-size:24px">${lv}</div><button class="opt" style="margin-top:16px" id="again">再测一次</button>`;
+    document.getElementById('again').onclick=()=>{qi=0;score=0;renderQ()}; return;
+  }
+  const it=Q[qi];
+  box.innerHTML = `<div class="q">${qi+1}. ${it.q}</div>` + it.o.map((t,i)=>`<button class="opt" data-i="${i}">${t}</button>`).join('') + `<div class="res" id="res"></div>`;
+  box.querySelectorAll('.opt').forEach(b=>b.onclick=()=>{
+    const ok = +b.dataset.i===it.a; if(ok) score++;
+    document.getElementById('res').textContent = ok ? "✅ 对了！呱哈哈哈" : "❌ 错了，奶蛙在笑你";
+    box.querySelectorAll('.opt').forEach(x=>x.disabled=true);
+    setTimeout(()=>{qi++;renderQ()},900);
+  });
+}
+renderQ();
+</script>
+</body>
+</html>
